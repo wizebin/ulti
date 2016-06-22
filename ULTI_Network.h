@@ -22,9 +22,9 @@
 #ifndef NETWORKFUNCTIONS_H
 #define NETWORKFUNCTIONS_H
 
+#if defined(ULTI_DONETWORK)
 
 #if defined(_WIN32) || defined(_WIN_32)
-
 
 //If you're on windows, you need to link to several libs:
 //(advapi32) && (mswsock) && (winmm) && (ws2_32) && (wsock32)
@@ -199,5 +199,5 @@ struct connection{
 };
 
 }
-
+#endif // defined ULTI_DONETWORK
 #endif

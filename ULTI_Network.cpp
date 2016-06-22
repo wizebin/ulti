@@ -7,6 +7,8 @@
  *
  */
 
+ #if defined(ULTI_DONETWORK)
+
 #ifndef UNICODE
 #define UNICODE
 #endif
@@ -1172,3 +1174,5 @@ int shareFolder(const std::string& folder, const std::string& name){
 }
 #endif
 }
+
+#endif // defined ULTI_DONETWORK

@@ -227,10 +227,10 @@ namespace ulti{
     }
 
     unsigned long getScanCode(int vkcode){
-        return MapVirtualKeyA(vkcode,MAPVK_VK_TO_VSC);
+        return MapVirtualKeyA(vkcode,0);//MAPVK_VK_TO_VSC);
     }
     unsigned long getVKCode(int scancode){
-        return MapVirtualKeyA(scancode,MAPVK_VSC_TO_VK);
+        return MapVirtualKeyA(scancode,1);//MAPVK_VSC_TO_VK);
     }
 
     int sendKeyDown(HWND hwnd, int key){
@@ -383,7 +383,7 @@ positioning::positioning(int icol, int irow, int iwidth, int iheight, int ixweig
 
 positioning DEFAULT_POSITIONING = positioning(0,0,20,20,0,0,PositionType::POSITION_NORMAL);
 unsigned long DEFAULT_FLAGS = WINDOW_UNKNOWN;
-WindowsClasses WinClasses;
+//WindowsClasses WinClasses;
 
 
 ClassType::ClassType(){
@@ -397,8 +397,8 @@ ClassType::ClassType(ClassCreation howCreated,unsigned long defaultFlags){
 
 
 
-WindowsClasses::WindowsClasses(){
-    classes = {
+//WindowsClasses::WindowsClasses(){
+    /*classes = {
         {"Animation",ClassType(CLASS_DEFAULT)},
         {"Button",ClassType(CLASS_DEFAULT)},
         {"ComboBox",ClassType(CLASS_DEFAULT)},
@@ -435,15 +435,21 @@ WindowsClasses::WindowsClasses(){
         {"Trackbar",ClassType(CLASS_DEFAULT)},
         {"Tree View",ClassType(CLASS_DEFAULT)},
         {"Up-Down Control",ClassType(CLASS_DEFAULT)}
-        };
-}
-bool WindowsClasses::isClassCreated(const std::string& classname){
-    if (classes[classname].origin==CLASS_NONE)
-        return false;
+        };*/
+//}
+/*bool WindowsClasses::isClassCreated(const std::string& classname){
+    if (classes[classname].origin==CLASS_NONE){
+        if (isClassKnown(classname)){
+            classes[classname].origin=CLASS_DEFAULT;
+        }
+        else{
+            return false;
+        }
+    }
     return true;
 }
 bool WindowsClasses::isClassDefault(const std::string& classname){
-    if (classes[classname].origin==CLASS_DEFAULT)
+    if (isClassKnown(classname))
         return true;
     return false;
 }
@@ -455,20 +461,51 @@ int WindowsClasses::addCustom(const std::string& classname){
 }
 unsigned long WindowsClasses::getDefaultFlags(const std::string& classname){
     return classes[classname].flags;
+}*/
+
+int isClassKnown(const std::string& type){
+    int res = GetLastError();
+    WNDCLASSA ii;
+    BOOL ret = GetClassInfoA(NULL,type.c_str(),&ii);
+    SetLastError(res);//preserve error message
+    return ret;
+}
+int isClassKnownW(const std::wstring& type){
+    int res = GetLastError();
+    WNDCLASSW ii;
+    BOOL ret = GetClassInfoW(NULL,type.c_str(),&ii);
+    SetLastError(res);//preserve error message
+    return ret;
 }
 
 static const int OLD_CUSTOM_PROC=GWLP_USERDATA+2;
 
 
+int window::destroyChildrenAlive(){
+    for(int a = childCount()-1; a >=0; a--){
+        getChild(a)->destroyAlive();
+    }
+}
 
-window::~window(){
-    if(parent!=NULL)
+//This function allows you to remove an object while it still lives. It can be recreated or whatever you need
+//This allows you to use scoped variables without fear.
+int window::destroyAlive(){
+    unlistenAll();
+    if(parent!=NULL){
         parent->remChild(this);
+        parent=NULL;
+    }
     if (veil.font!=NULL){
         DeleteObject(veil.font);
+        veil.font=NULL;
     }
-    if (veil.hwnd!=NULL)
+    if (veil.hwnd!=NULL){
         DestroyWindow(veil.hwnd);
+        veil.hwnd=NULL;
+    }
+}
+window::~window(){
+    destroyAlive();
 }
 int window::getx(){
     #if defined(_WIN_32) || defined(_WIN32) || defined(WIN32)
@@ -544,6 +581,12 @@ int window::xweight(){
 int window::yweight(){
     return wpos.yweight;
 }
+void window::setxWeight(int ix){
+    wpos.xweight=ix;
+}
+void window::setyWeight(int iy){
+    wpos.yweight=iy;
+}
 bool window::canBePositioned(){
     return ((!isHidden())&&(wpos.postype==PositionType::POSITION_NORMAL||wpos.postype==PositionType::POSITION_RELATIVE));
 }
@@ -593,25 +636,40 @@ int window::getRelativeMouseY(){
     return point.y;
 }
 int window::getTextLength(){
-    return GetWindowTextLength(veil.hwnd);
+    return getTextLengthW();
 }
+int window::getTextLengthW(){
+    return GetWindowTextLengthW(veil.hwnd);
+}
+
 std::string window::getText(){
-    int len = getTextLength()+1;
-    std::string ret; ret.resize(len);
-    GetWindowTextA(veil.hwnd,&ret[0],len);
+    std::wstring ret = getTextW();
+    return std::string(ret.begin(), ret.end());
+}
+std::wstring window::getTextW(){
+    int len = getTextLengthW()+1;
+    std::wstring ret; ret.resize(len);
+    GetWindowTextW(veil.hwnd,&ret[0],len);
     return ret;
 }
 void window::setText(const std::string& itext){
+    std::wstring tmp(itext.begin(),itext.end());
+    setTextW(tmp);
+}
+void window::setTextW(const std::wstring& itext){
     #if defined(_WIN_32) || defined(_WIN32) || defined(WIN32)
         if (veil.hwnd!=NULL){
-            SendMessageA(veil.hwnd,WM_SETTEXT,NULL,(LPARAM)itext.c_str());
+            SendMessageW(veil.hwnd,WM_SETTEXT,NULL,(LPARAM)itext.c_str());
         }
     #endif // _WIN32
 }
 void window::setHint(const std::string& title){
+    std::wstring tmp(title.begin(),title.end());
+    setHintW(tmp);
+}
+void window::setHintW(const std::wstring& title){
      if (veil.hwnd!=NULL){
-         std::wstring stringy(title.begin(),title.end());
-         SendMessageW(veil.hwnd,0x1501,false,(LPARAM)stringy.c_str());//EM_SETCUEBANNER = 0x1501
+         SendMessageW(veil.hwnd,0x1501,false,(LPARAM)title.c_str());//EM_SETCUEBANNER = 0x1501
      }
  }
 bool POINTER_COMPARE(window* a, window* b) { return (a < b); }
@@ -627,6 +685,12 @@ int window::remChild(window* win){///TODO TEST TEST TEST TEST
     if (pr.first==pr.second)
         return -1;
     children.erase(pr.first);//first object that is not < win where first and last are not equal, second is 1 beyond range
+    return 1;
+}
+int window::clearChildren(){
+    for(int a = childCount()-1; a >=0; a--){
+        remChild(getChild(a));
+    }
     return 1;
 }
 int window::childCount(){
@@ -687,6 +751,9 @@ window::window(){
     oldproc=NULL;
     yscroll=yscrollmax=yscrollmin=0;
 }
+window::window(window* iparent, const std::wstring& title, const std::wstring& type, unsigned long flags, positioning ipos):window(){
+    createW(iparent,title,type,flags,ipos);
+}
 window::window(window* iparent, const std::string& title, const std::string& type, unsigned long flags, positioning ipos):window(){
     create(iparent,title,type,flags,ipos);
 }
@@ -694,10 +761,10 @@ int window::getNextChildID(){
     return (++nextID);
 }
 long window::getWindowStyle(){
-    return GetWindowLong(veil.hwnd,GWL_STYLE);
+    return GetWindowLongW(veil.hwnd,GWL_STYLE);
 }
 long window::setWindowStyle(long istyle){
-    return SetWindowLong(veil.hwnd,GWL_STYLE,istyle);
+    return SetWindowLongW(veil.hwnd,GWL_STYLE,istyle);
 }
 long window::setDefaultMenuBar(bool usemenu){
     if (usemenu)
@@ -736,12 +803,13 @@ int window::reparent(window* nparent,bool titlebar){
 int window::popout(){
     return reparent(NULL,true);
 }
-int isClassDefault(const std::string type){
-    WNDCLASS ii;
-    BOOL ret = GetClassInfo(NULL,type.c_str(),&ii);
-    return ret;
-}
 int window::create(window* iparent, const std::string& title, const std::string& type, unsigned long flags, positioning ipos){
+    std::wstring wtitle(title.begin(),title.end());
+    std::wstring wtype(type.begin(),type.end());
+    return createW(iparent,wtitle,wtype,flags,ipos);
+}
+
+int window::createW(window* iparent, const std::wstring& title, const std::wstring& type, unsigned long flags, positioning ipos){
     parent=iparent;
     createFlags=flags;
     createType=type;
@@ -761,17 +829,21 @@ int window::create(window* iparent, const std::string& title, const std::string&
     if ((flags&WINDOW_BORDERED)==WINDOW_BORDERED){
         winflags|=WS_BORDER;
     }
-    if (!WinClasses.isClassCreated(type)){
-        WNDCLASSA wc = { 0 };
+
+    if (!isClassKnownW(type)){
+
+        WNDCLASSW wc = { 0 };
         wc.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
         wc.lpfnWndProc = &WindowProcedure;
         wc.hCursor = LoadCursor(NULL, IDC_ARROW);
         wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
         wc.lpszClassName = type.c_str();
-        if (RegisterClassA(&wc)==0)
+        int res = RegisterClassW(&wc);
+        if (res==0)
             return -1;
-        WinClasses.addCustom(type);
+        //WinClasses.addCustom(type);
     }
+
     HWND phwnd=NULL;
     int identifier = 0;
     HINSTANCE hInstance = GetModuleHandle(NULL);
@@ -784,24 +856,31 @@ int window::create(window* iparent, const std::string& title, const std::string&
     else{
         winflags |= WS_OVERLAPPEDWINDOW;
     }
-    veil.hwnd= CreateWindowA(type.c_str(), title.c_str(), winflags,
+
+    veil.hwnd= CreateWindowW(type.c_str(), title.c_str(), winflags,
                                   ipos.col,ipos.row,ipos.minwidth,ipos.minheight, phwnd, (HMENU) identifier, hInstance, (LPVOID)this);
 
     ///BBBBBB
 
-    if (isClassDefault(type)){//subclass any existing windows classes
+    if (isClassKnownW(type)){//subclass any existing windows classes
         oldproc=reinterpret_cast<WNDPROC>(static_cast<LONG_PTR>(
-             SetWindowLongPtrA(veil.hwnd,GWLP_WNDPROC,
+             SetWindowLongPtrW(veil.hwnd,GWLP_WNDPROC,
              reinterpret_cast<LONG_PTR>(WindowProcedure))));
         //SetWindowLongPtrA(veil.hwnd,OLD_CUSTOM_PROC,reinterpret_cast<LONG_PTR>(oldproc));
     }
+
     //if (!WinClasses.isClassDefault(type)){
-    SetWindowLongPtrA(veil.hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+    SetWindowLongPtrW(veil.hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+
     //}
     wpos=ipos;
     return 1;
 }
 std::string window::getType(){
+    std::string stype(createType.begin(),createType.end());
+    return stype;
+}
+std::wstring window::getTypeW(){
     return createType;
 }
 void window::setFont(int fsize, int family, const std::string& face, int weight, bool italic, bool underline, int charset, int quality){
@@ -1073,23 +1152,29 @@ int window::checkEvents(){
 int window::pauseForEvent(){
     static MSG msg;
     static int ret;
-    ret = GetMessage(&msg, NULL, 0, 0);
+    ret = GetMessageW(&msg, NULL, 0, 0);
     TranslateMessage(&msg);
-    DispatchMessage(&msg);
+    DispatchMessageW(&msg);
     return ret;
 }
 int window::processEvents(){
     static MSG Msg;
     static int msgAvail;
     int ret = 1;
-    msgAvail = PeekMessageA(&Msg,NULL,0,0,PM_NOREMOVE);
+
+    msgAvail = PeekMessageW(&Msg,NULL,0,0,PM_NOREMOVE);
+
     if (msgAvail!=1)
         return 0;
     while(msgAvail){
-        ret = (GetMessageA(&Msg, NULL, 0, 0) != 0);
+        ret = (GetMessageW(&Msg, NULL, 0, 0) != 0);
+
         TranslateMessage(&Msg);
-        DispatchMessageA(&Msg);
-        msgAvail = PeekMessageA(&Msg,NULL,0,0,PM_NOREMOVE);
+
+        DispatchMessageW(&Msg);
+
+        msgAvail = PeekMessageW(&Msg,NULL,0,0,PM_NOREMOVE);
+
     }
     if (ret==0)
         return -1;//quit
@@ -1292,7 +1377,7 @@ static LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT uMsg, WPARAM wParam, LPA
         return winn->windowCallback(hwnd,uMsg,wParam,lParam);
     }
     else{
-        return DefWindowProc(hwnd, uMsg, wParam, lParam);
+        return DefWindowProcW(hwnd, uMsg, wParam, lParam);
     }
 }
 
@@ -1404,7 +1489,7 @@ static LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT uMsg, WPARAM wParam, LPA
                     parent->remChild(this);
                 break;
         }
-        return DefWindowProc(ihwnd, msg, wparam, lparam);
+        return DefWindowProcW(ihwnd, msg, wparam, lparam);
     }
 
 

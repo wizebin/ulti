@@ -197,7 +197,9 @@ struct ClassType{
 
 //This allows you to use any classname without having to worry about whether you are subclassing,
 //creating a new class, or anything else- that whole process is all automated with this class
-class WindowsClasses{
+
+//Replaced by the isClassKnown functions
+/*class WindowsClasses{
     public:
     std::map<std::string,ClassType> classes;
     bool isClassCreated(const std::string& classname);
@@ -205,10 +207,13 @@ class WindowsClasses{
     unsigned long getDefaultFlags(const std::string& classname);
     int addCustom(const std::string& classname);
     WindowsClasses();
-};
+};*/
+
+int isClassKnown(const std::string& classname);
+int isClassKnownW(const std::wstring& classname);
 
 //Not a singleton, could very easily be made into one
-extern WindowsClasses WinClasses;
+//extern WindowsClasses WinClasses;
 
 //This is the vendor specific data class, this may well be included directly in the window class in the future
 struct VendorElements{
@@ -265,25 +270,38 @@ protected:
     positioning wpos;
     unsigned long createFlags;
     ulti::element eventMap;
-    std::string createType;
+    std::wstring createType;
     int yscroll,yscrollmin,yscrollmax;
+
+    ///TODO
+    //use this flag to indicate that the object was created by the spawn() method- it will automatically
+    //be destroyed by the parent, or you can explicitly destroy it with the remchild() method
+    //bool wasSpawned;
+
 
 public:
 
     VendorElements veil; //contains vendor specific structures
 
     window(window* parent, const std::string& title, const std::string& type = "DEFAULT_TYPE", unsigned long flags = DEFAULT_FLAGS, positioning ipos = DEFAULT_POSITIONING);
+    window(window* parent, const std::wstring& title, const std::wstring& type = L"DEFAULT_TYPE", unsigned long flags = DEFAULT_FLAGS, positioning ipos = DEFAULT_POSITIONING);
     //window* createChild();//This window will be responsible to clean up the mess
     //window(window* parent, const ulti::element& el);
     window();
     virtual int create(window* parent, const std::string& title, const std::string& type = "DEFAULT_TYPE", unsigned long flags = DEFAULT_FLAGS, positioning ipos = DEFAULT_POSITIONING);
+    virtual int createW(window* parent, const std::wstring& title, const std::wstring& type = L"DEFAULT_TYPE", unsigned long flags = DEFAULT_FLAGS, positioning ipos = DEFAULT_POSITIONING);
 
     //Normally called internally- you don't need to add or remove children manually unless you're doing
     //something fancy
     virtual int addChild(window* win);
     virtual int remChild(window* win);
+    virtual int clearChildren();
     virtual int childCount();
     virtual window* getChild(int index);
+
+    ///TODO
+    //virtual window* spawnChild();
+    //virtual window* spawnChild(window* parent, const std::string& title, const std::string& type = "DEFAULT_TYPE", unsigned long flags = DEFAULT_FLAGS, positioning ipos = DEFAULT_POSITIONING);
 
     long getWindowStyle();
     long setWindowStyle(long istyle);
@@ -406,11 +424,15 @@ public:
     //These text functions are relevant for anything with a title or a body, so a textbox or a button would
     //both use these functions to modify/retrieve their text
     int getTextLength();
+    int getTextLengthW();
     std::string getText();
+    std::wstring getTextW();
     void setText(const std::string& itext);
+    void setTextW(const std::wstring& itext);
 
     //Will not work on every control, generally just edit boxes
     void setHint(const std::string& title);
+    void setHintW(const std::wstring& title);
 
 
     //These do not take immediate effect, must call layout on the parent to cause a change
@@ -419,7 +441,7 @@ public:
     void setRow(int irow);
     void setCol(int icol);
     void setxWeight(int ix);
-    void setyWeight(int ix);
+    void setyWeight(int iy);
     void setMarginLeft(int imargin);
     void setMarginRight(int imargin);
     void setMarginTop(int imargin);
@@ -432,6 +454,7 @@ public:
 
     //returns windows class
     std::string getType();
+    std::wstring getTypeW();
 
     void setFont(int fsize, int family = FF_MODERN, const std::string& face="", int weight = FW_DONTCARE, bool italic = false, bool underline = false, int charset = DEFAULT_CHARSET, int quality = PROOF_QUALITY);
 
@@ -470,6 +493,8 @@ public:
         LRESULT CALLBACK windowCallback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
     #endif // defined _WIN_32
 
+    int destroyChildrenAlive();
+    int destroyAlive();
     virtual ~window();
 };
 

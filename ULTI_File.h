@@ -161,9 +161,10 @@ int copyFilePortion(const std::string& original, const std::string& destination,
 int moveFile(const std::string& name, const std::string& ren);
 int deleteFile(const std::string& name);
 
+#if defined(IID_IPersistFile)
 //make shortcut
 int createLink(const std::string& name, const std::string& linkname, const std::string& linkdesc);
-
+#endif // defined(IID_IPersistFile)
 
 int setFileTimes(const std::string& filename, unsigned long modified, unsigned long created, unsigned long accessed);
 time_t getFileModified(const std::string& filename);
@@ -176,6 +177,8 @@ int setFileAccessed(const std::string& filename, time_t accessed);
 //cwd = current working directory
 std::string getcwd();
 
+#if defined(ULTI_DONETWORK) && defined(ULTI_DOSHARED)
+
 //this requires the netapi32 library
 std::vector<flock> getSharedFiles(const std::wstring& path);
 
@@ -183,6 +186,8 @@ int closeSharedFiles(const std::wstring& path);
 int closeFileLock(const flock& lock);
 int closeFilesMatching(const std::wstring& name, const std::wstring& path);
 std::vector<flock> findFilesMatching(const std::wstring& name,const std::wstring& path);
+
+#endif // defined(ULTI_DONETWORK) && defined(ULTI_DOSHARED)
 
 //run a program
 int start(const std::string& filename, const std::string& param = "", const std::string& directory = "");

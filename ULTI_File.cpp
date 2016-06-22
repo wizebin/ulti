@@ -308,8 +308,8 @@ int appendfile(const std::string& filename, const std::string& content, bool cre
     return 1;
 }
 
-
-#if defined(_WIN32)||defined(_WIN_32)
+#if defined(IID_IPersistFile)
+#if (defined(_WIN32)||defined(_WIN_32))
 
 HRESULT CreateLink(LPCSTR lpszPathObj, LPCSTR lpszPathLink, LPCSTR lpszDesc, LPCSTR wrkdir)
 {
@@ -367,7 +367,7 @@ int createLink(const std::string& name, const std::string& linkname, const std::
     CoUninitialize();
     return ret;
 }
-
+#endif // defined(IID_IPersistFile)
 //format
 //(")key("):(")value(")
 
@@ -783,6 +783,8 @@ int deleteFile(const std::string& name){
     return ret;
 }*/
 
+#if defined(ULTI_DONETWORK) && defined(ULTI_DOSHARED)
+
 std::vector<flock> getSharedFiles(const std::wstring& path){
     FILE_INFO_3* pFiles = NULL;
     DWORD nRead = 0, nTotal = 0;
@@ -866,6 +868,8 @@ std::vector<flock> findFilesMatching(const std::wstring& name,const std::wstring
     }
     return ret;
 }
+#endif // defined(ULTI_DONETWORK) && defined(ULTI_DOSHARED)
+
 int start(const std::string& filename, const std::string& param, const std::string& directory){
 #if defined(_WIN32)||defined(_WIN_32)
     if (directory.size()>0){
